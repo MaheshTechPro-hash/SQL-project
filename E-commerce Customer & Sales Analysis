@@ -1,0 +1,166 @@
+
+-- DDL SCRIPT: Create Tables and set up Foreign Key Constraints
+
+-- 1. Customer Table
+CREATE TABLE T_Customer (
+    CustomerID INT PRIMARY KEY,
+    FirstName NVARCHAR(50) NOT NULL,
+    LastName NVARCHAR(50) NOT NULL,
+    Email NVARCHAR(100) UNIQUE,
+    Region NVARCHAR(50)
+);
+
+-- 2. Product Table
+CREATE TABLE T_Product (
+    ProductID INT PRIMARY KEY,
+    ProductName NVARCHAR(100) NOT NULL,
+    Category NVARCHAR(50),
+    Price DECIMAL(10, 2) NOT NULL CHECK (Price > 0)
+);
+
+-- 3. Sales Order (The Fact Table)
+CREATE TABLE T_Order (
+    OrderID INT PRIMARY KEY,
+    CustomerID INT FOREIGN KEY REFERENCES T_Customer(CustomerID),
+    OrderDate DATE NOT NULL,
+    TotalAmount DECIMAL(10, 2)
+);
+
+-- 4. Order Details (Line Items)
+CREATE TABLE T_OrderDetail (
+    DetailID INT PRIMARY KEY,
+    OrderID INT FOREIGN KEY REFERENCES T_Order(OrderID),
+    ProductID INT FOREIGN KEY REFERENCES T_Product(ProductID),
+    Quantity INT NOT NULL CHECK (Quantity > 0),
+    LineTotal DECIMAL(10, 2)
+);
+
+
+
+
+
+-- DML SCRIPT: Insert Sample Data
+
+-- Insert into T_Customer
+INSERT INTO T_Customer (CustomerID, FirstName, LastName, Email, Region) VALUES
+(101, 'Arjun', 'Patil', 'arjun@email.com', 'West'),
+(102, 'Priya', 'Sharma', 'priya@email.com', 'North'),
+(103, 'Sanjay', 'Verma', 'sanjay@email.com', 'South'),
+(104, 'Neha', 'Goyal', 'neha@email.com', 'East'),
+(105, 'Ravi', 'Kumar', 'ravi@email.com', 'North');
+
+-- Insert into T_Product
+INSERT INTO T_Product (ProductID, ProductName, Category, Price) VALUES
+(1, 'Laptop Pro', 'Electronics', 55000.00),
+(2, 'Wireless Mouse', 'Accessories', 800.00),
+(3, 'T-Shirt Cotton', 'Apparel', 650.00),
+(4, 'Desk Lamp', 'Home Goods', 1500.00);
+
+-- Insert into T_Order
+INSERT INTO T_Order (OrderID, CustomerID, OrderDate, TotalAmount) VALUES
+(1001, 101, '2024-07-01', 55800.00),
+(1002, 102, '2024-07-05', 650.00),
+(1003, 101, '2024-08-10', 1300.00),
+(1004, 104, '2024-07-12', 55000.00),
+(1005, 103, '2024-08-15', 3000.00),
+(1006, 105, '2024-09-01', 5650.00);
+
+-- Insert into T_OrderDetail
+INSERT INTO T_OrderDetail (DetailID, OrderID, ProductID, Quantity, LineTotal) VALUES
+(2001, 1001, 1, 1, 55000.00),
+(2002, 1001, 2, 1, 800.00),
+(2003, 1002, 3, 1, 650.00),
+(2004, 1003, 3, 2, 1300.00),
+(2005, 1004, 1, 1, 55000.00),
+(2006, 1005, 4, 2, 3000.00),
+(2007, 1006, 3, 1, 650.00),
+(2008, 1006, 4, 3, 4500.00);
+
+
+
+-- ADVANCED ANALYSIS QUERIES: CTEs and Window Functions
+
+-- Q1: Find the Top 3 Revenue Generating Customers (Customer Lifetime Value)
+WITH CustomerRevenue AS (
+    SELECT
+        C.CustomerID,
+        C.FirstName,
+        C.LastName,
+        SUM(O.TotalAmount) AS TotalRevenue
+    FROM
+        T_Customer C
+    JOIN
+        T_Order O ON C.CustomerID = O.CustomerID
+    GROUP BY
+        C.CustomerID, C.FirstName, C.LastName
+),
+RankedCustomerRevenue AS (
+    SELECT
+        FirstName,
+        LastName,
+        TotalRevenue,
+        RANK() OVER (ORDER BY TotalRevenue DESC) AS RevenueRank
+    FROM
+        CustomerRevenue
+)
+SELECT
+    FirstName,
+    LastName,
+    TotalRevenue
+FROM
+    RankedCustomerRevenue
+WHERE
+    RevenueRank <= 3
+ORDER BY TotalRevenue DESC;
+
+
+
+
+-- Q2: Calculate the Total Sales for Each Month and show Month-over-Month Growth %
+WITH MonthlySales AS (
+    SELECT
+        FORMAT(OrderDate, 'yyyy-MM') AS SalesMonth,
+        SUM(TotalAmount) AS CurrentMonthSales
+    FROM
+        T_Order
+    GROUP BY
+        FORMAT(OrderDate, 'yyyy-MM')
+)
+SELECT
+    SalesMonth,
+    CurrentMonthSales,
+    LAG(CurrentMonthSales, 1, 0) OVER (ORDER BY SalesMonth) AS PreviousMonthSales,
+    CAST((CurrentMonthSales - LAG(CurrentMonthSales, 1, 0) OVER (ORDER BY SalesMonth)) AS DECIMAL(10, 2))
+    / NULLIF(LAG(CurrentMonthSales, 1, 0) OVER (ORDER BY SalesMonth), 0) * 100 AS Growth_Percentage
+FROM
+    MonthlySales
+ORDER BY
+    SalesMonth;
+
+
+
+
+-- Q3: Find the Top Selling Product in Each Category (Partitioning)
+WITH ProductSales AS (
+    SELECT
+        P.Category,
+        P.ProductName,
+        SUM(OD.Quantity) AS TotalQuantitySold,
+        ROW_NUMBER() OVER (PARTITION BY P.Category ORDER BY SUM(OD.Quantity) DESC) AS Rank_In_Category
+    FROM
+        T_OrderDetail OD
+    JOIN
+        T_Product P ON OD.ProductID = P.ProductID
+    GROUP BY
+        P.Category, P.ProductName
+)
+SELECT
+    Category,
+    ProductName,
+    TotalQuantitySold
+FROM
+    ProductSales
+WHERE
+    Rank_In_Category = 1
+ORDER BY
+    TotalQuantitySold DESC;
