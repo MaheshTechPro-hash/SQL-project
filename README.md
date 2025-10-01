@@ -54,8 +54,7 @@ SQL Client or Workbench
 
 Clone the repository
 
-git clone https://github.com/MaheshTechPro-hash/SQL-project.git
-
+git clone https:https://github.com/MaheshTechPro-hash/SQL-project/blob/main/E-commerce%20Customer%20%26%20Sales%20Analysis
 
 Import the database schema (DDL) into your SQL environment
 
