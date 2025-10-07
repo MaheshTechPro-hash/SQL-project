@@ -10,6 +10,9 @@ CREATE TABLE T_Customer (
     Region NVARCHAR(50)
 );
 
+
+
+
 -- 2. Product Table
 CREATE TABLE T_Product (
     ProductID INT PRIMARY KEY,
@@ -18,6 +21,9 @@ CREATE TABLE T_Product (
     Price DECIMAL(10, 2) NOT NULL CHECK (Price > 0)
 );
 
+
+
+
 -- 3. Sales Order (The Fact Table)
 CREATE TABLE T_Order (
     OrderID INT PRIMARY KEY,
@@ -25,6 +31,8 @@ CREATE TABLE T_Order (
     OrderDate DATE NOT NULL,
     TotalAmount DECIMAL(10, 2)
 );
+
+
 
 -- 4. Order Details (Line Items)
 CREATE TABLE T_OrderDetail (
